@@ -1,0 +1,3 @@
+"use client";
+export function Card({children,className="",...props}){return(<div className={className} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:20,marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}} {...props}>{children}</div>)}
+export function Toast({message}){if(!message)return null;return(<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",zIndex:999,background:"#fff",border:"2px solid #FF6F00",color:"#FF6F00",padding:"12px 28px",borderRadius:14,fontSize:14,fontWeight:700,boxShadow:"0 8px 30px rgba(0,0,0,0.1)"}}>{message}</div>)}
