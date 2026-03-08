@@ -203,6 +203,146 @@ function BadgeDisplay({ badges }) {
   );
 }
 
+// ── LIVE OVER-BY-OVER COMPONENT ──
+function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState("");
+  const overPreds = preds.over_predictions || {};
+  const overResults = results?.over_results || {};
+
+  // Determine current over from completed data
+  const maxCompleted = completedOvers.length > 0
+    ? Math.max(...completedOvers.map(Number))
+    : 0;
+
+  async function saveOverPrediction(overNum, value) {
+    const newOverPreds = { ...overPreds, [overNum]: value };
+    const newPreds = { ...preds, over_predictions: { ...newOverPreds, _boosts: overPreds._boosts, _powerups: overPreds._powerups, _doubleDownField: overPreds._doubleDownField } };
+    setPreds(newPreds);
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("predictions")
+      .update({ over_predictions: newPreds.over_predictions })
+      .eq("player_name", playerName);
+    setSaving(false);
+
+    if (!error) {
+      setSaved(`Over ${overNum} saved!`);
+      setTimeout(() => setSaved(""), 1500);
+    }
+  }
+
+  const matchStarted = new Date() >= new Date("2026-03-08T19:00:00+05:30");
+  const matchEnded = results?.match_winner;
+
+  if (matchEnded) {
+    // Show final over results
+    const correctCount = Object.keys(overResults).filter(o => overPreds[o] && overPreds[o] === overResults[o]).length;
+    return (
+      <Card accent team="ind">
+        <SectionTitle icon="📊" title="Over-by-Over Results" pts={POINTS.overPrediction} />
+        <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+          You got <strong style={{ color: C.green }}>{correctCount}</strong> out of {Object.keys(overResults).length} overs correct! (+{correctCount * POINTS.overPrediction} pts)
+        </div>
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          {Array.from({ length: 20 }, (_, i) => {
+            const ov = String(i + 1);
+            const predicted = overPreds[ov];
+            const actual = overResults[ov];
+            const correct = predicted && actual && predicted === actual;
+            const wrong = predicted && actual && predicted !== actual;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, padding: "6px 8px", borderRadius: 8, background: correct ? C.greenPale : wrong ? "#FEE2E2" : C.borderLight }}>
+                <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.textMuted, minWidth: 44 }}>Ov {i + 1}</span>
+                <span style={{ fontSize: 12, color: C.textMuted, minWidth: 50 }}>You: <strong style={{ color: predicted ? C.text : C.textDim }}>{predicted || "—"}</strong></span>
+                <span style={{ fontSize: 12, color: C.textMuted, minWidth: 60 }}>Actual: <strong style={{ color: actual ? C.text : C.textDim }}>{actual || "—"}</strong></span>
+                <span style={{ marginLeft: "auto", fontSize: 14 }}>{correct ? "✅" : wrong ? "❌" : "⏳"}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card accent team="ind">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <SectionTitle icon="📊" title="Live Over-by-Over" pts={POINTS.overPrediction} />
+        {saving && <span style={{ fontSize: 11, color: C.indOrange, fontWeight: 700 }}>Saving...</span>}
+        {saved && <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>{saved}</span>}
+      </div>
+
+      {!matchStarted ? (
+        <div style={{ textAlign: "center", padding: "16px 0" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+          <div style={{ fontSize: 13, color: C.textMuted, fontWeight: 600 }}>Over-by-over opens when the match starts at 7:00 PM!</div>
+          <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>Predict each over LIVE — before it&apos;s bowled. {POINTS.overPrediction} pts each!</div>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, padding: "6px 10px", background: C.indOrangePale, borderRadius: 8 }}>
+            🔴 <strong style={{ color: C.indOrange }}>LIVE!</strong> Predict runs for each over before it&apos;s bowled. Completed overs lock automatically. {POINTS.overPrediction} pts each!
+          </div>
+          <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
+            {Array.from({ length: 20 }, (_, i) => {
+              const ov = String(i + 1);
+              const isCompleted = completedOvers.includes(ov);
+              const actual = overResults[ov];
+              const predicted = overPreds[ov];
+              const correct = isCompleted && predicted && predicted === actual;
+              const wrong = isCompleted && predicted && predicted !== actual;
+              const isNext = !isCompleted && (i === 0 || completedOvers.includes(String(i)));
+              const isFuture = !isCompleted && !isNext;
+
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 6, marginBottom: 5,
+                  padding: "6px 8px", borderRadius: 8,
+                  background: correct ? C.greenPale : wrong ? "#FEE2E2" : isNext ? C.indOrangePale : "transparent",
+                  border: isNext ? `2px solid ${C.indOrange}` : "none",
+                }}>
+                  <span style={{
+                    fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, minWidth: 44,
+                    color: isCompleted ? (correct ? C.green : "#DC2626") : isNext ? C.indOrange : C.textDim,
+                  }}>
+                    {isCompleted ? (correct ? "✅" : "❌") : isNext ? "🔴" : "⏳"} Ov {i + 1}
+                  </span>
+
+                  {isCompleted ? (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11, color: C.textMuted }}>
+                      <span>You: <strong style={{ color: correct ? C.green : "#DC2626" }}>{predicted || "—"}</strong></span>
+                      <span>Actual: <strong style={{ color: C.text }}>{actual}</strong></span>
+                      <span style={{ fontWeight: 700, color: correct ? C.green : "#DC2626" }}>{correct ? `+${POINTS.overPrediction}` : "+0"}</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 2, flex: 1, opacity: isFuture ? 0.4 : 1 }}>
+                      {OVER_RANGES.map(r => (
+                        <button key={r}
+                          onClick={() => { if (!isCompleted) saveOverPrediction(ov, r); }}
+                          disabled={isCompleted}
+                          style={{
+                            flex: 1, padding: "4px 1px", borderRadius: 7, fontSize: 9.5,
+                            fontWeight: predicted === r ? 800 : 500,
+                            border: predicted === r ? `2px solid ${C.indBlue}` : `1px solid ${C.border}`,
+                            background: predicted === r ? C.indBluePale : C.white,
+                            color: predicted === r ? C.indBlue : C.textDim,
+                            cursor: isCompleted ? "not-allowed" : "pointer", fontFamily: "inherit",
+                          }}>{r}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
 // ═══ MAIN PAGE ═══
 export default function PredictPage() {
   const [name, setName] = useState("");
@@ -275,6 +415,7 @@ export default function PredictPage() {
   if (submitted) {
     const score = results ? calcBoostedScore(preds, results) : 0;
     const badges = results ? getBadges(preds, results) : [];
+    const completedOvers = results?.over_results ? Object.keys(results.over_results) : [];
     return (
       <><Toast /><LiveScore /><Countdown />
         <Card accent team="ind" style={{ textAlign: "center", borderColor: C.green }}>
@@ -294,6 +435,12 @@ export default function PredictPage() {
           )}
           <BadgeDisplay badges={badges} />
         </Card>
+
+        {/* ── LIVE OVER-BY-OVER ── */}
+        <LiveOverByOver
+          preds={preds} setPreds={setPreds} results={results}
+          completedOvers={completedOvers} playerName={name}
+        />
       </>
     );
   }
@@ -461,7 +608,11 @@ export default function PredictPage() {
       {/* Over-by-Over */}
       <Card accent team="ind">
         <SectionTitle icon="📊" title="Over-by-Over (1st Inn)" pts={POINTS.overPrediction} />
-        <p style={{ color: C.textMuted, fontSize: 10, margin: "0 0 8px" }}>{POINTS.overPrediction} pts each!</p>
+        <div style={{ padding: "10px 14px", background: "linear-gradient(135deg,#E3F2FD,#FFF3E0)", borderRadius: 10, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.indBlue, marginBottom: 2 }}>🔴 This section stays LIVE during the match!</div>
+          <div style={{ fontSize: 11, color: C.textMuted }}>You can predict now or come back during the match. Each over locks once it&apos;s bowled. {POINTS.overPrediction} pts per correct over!</div>
+        </div>
+        <p style={{ color: C.textMuted, fontSize: 10, margin: "0 0 8px" }}>Optional now — predict the rest live during the match!</p>
         <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
           {Array.from({ length: 20 }, (_, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
