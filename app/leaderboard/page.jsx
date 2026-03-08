@@ -30,8 +30,12 @@ function getBadges(p, r) {
   const boosts = p.over_predictions?._boosts || {};
   const st = { correct: 0, matchWinner: false, topScorer: false, totalSixes: false, pickedNZ: p.match_winner === "New Zealand", oversCorrect: 0, highRollerHit: false, totalScore: p.score || 0 };
   if (r.match_winner && p.match_winner === r.match_winner) { st.correct++; st.matchWinner = true; }
-  if (r.top_scorer && p.top_scorer === r.top_scorer) { st.correct++; st.topScorer = true; }
-  if (r.player_of_match && p.player_of_match === r.player_of_match) st.correct++;
+  if (r.top_scorer_india && p.top_scorer_india === r.top_scorer_india) { st.correct++; st.topScorer = true; }
+  if (r.top_scorer_nz && p.top_scorer_nz === r.top_scorer_nz) { st.correct++; st.topScorer = true; }
+  if (r.top_wicket_india && p.top_wicket_india === r.top_wicket_india) st.correct++;
+  if (r.top_wicket_nz && p.top_wicket_nz === r.top_wicket_nz) st.correct++;
+  if (r.most_catches && p.most_catches === r.most_catches) st.correct++;
+  if (r.total_sixes && p.total_sixes === r.total_sixes) { st.correct++; st.totalSixes = true; }
   if (r.total_sixes && p.total_sixes === r.total_sixes) { st.correct++; st.totalSixes = true; }
   if (r.first_wicket_over && p.first_wicket_over === r.first_wicket_over) st.correct++;
   if (r.powerplay_score && p.powerplay_score === r.powerplay_score) st.correct++;
@@ -39,7 +43,7 @@ function getBadges(p, r) {
   const overResults = r.over_results || {};
   const overPreds = p.over_predictions || {};
   for (const ov of Object.keys(overResults)) { if (overPreds[ov] && overPreds[ov] === overResults[ov]) st.oversCorrect++; }
-  const cf = ["match_winner", "top_scorer", "player_of_match", "total_sixes", "first_wicket_over", "powerplay_score", "highest_individual"];
+  const cf = ["match_winner", "top_scorer_india", "top_scorer_nz", "top_wicket_india", "top_wicket_nz", "most_catches", "total_sixes", "first_wicket_over", "powerplay_score", "highest_individual"];
   for (const f of cf) { if ((boosts[f] || 1) === 3 && r[f] && p[f] === r[f]) st.highRollerHit = true; }
   return BADGE_DEFS.filter(b => b.check(st));
 }
@@ -129,9 +133,14 @@ function WinnerCard({ winner, rank, results, badges }) {
                 {winner.match_winner === "India" ? "🇮🇳" : "🇳🇿"} {winner.match_winner}
               </div>
             )}
-            {winner.top_scorer && (
+            {winner.top_scorer_india && (
               <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "4px 12px", fontSize: 11, color: "#fff", fontWeight: 700 }}>
-                🔥 {winner.top_scorer}
+                🇮🇳 🔥 {winner.top_scorer_india}
+              </div>
+            )}
+            {winner.top_scorer_nz && (
+              <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "4px 12px", fontSize: 11, color: "#fff", fontWeight: 700 }}>
+                🇳🇿 🔥 {winner.top_scorer_nz}
               </div>
             )}
           </div>
@@ -351,8 +360,11 @@ export default function LeaderboardPage() {
           <h3 style={{ fontFamily: "'Teko',sans-serif", fontSize: 20, color: C.nzBlack, margin: "0 0 10px" }}>📋 MATCH RESULTS</h3>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {results.match_winner && <span style={{ background: C.greenPale, color: C.green, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🏆 {results.match_winner}</span>}
-            {results.top_scorer && <span style={{ background: C.indBluePale, color: C.indBlue, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🔥 {results.top_scorer}</span>}
-            {results.player_of_match && <span style={{ background: C.purplePale, color: C.purple, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>⭐ {results.player_of_match}</span>}
+            {results.top_scorer_india && <span style={{ background: C.indBluePale, color: C.indBlue, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🇮🇳 🔥 {results.top_scorer_india}</span>}
+            {results.top_scorer_nz && <span style={{ background: C.nzPale, color: C.nzBlack, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🇳🇿 🔥 {results.top_scorer_nz}</span>}
+            {results.top_wicket_india && <span style={{ background: C.indOrangePale, color: C.indOrange, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🇮🇳 🎳 {results.top_wicket_india}</span>}
+            {results.top_wicket_nz && <span style={{ background: C.nzPale, color: C.nzBlack, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🇳🇿 🎳 {results.top_wicket_nz}</span>}
+            {results.most_catches && <span style={{ background: C.purplePale, color: C.purple, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🧤 {results.most_catches}</span>}
             {results.total_sixes && <span style={{ background: "#FCE7F3", color: "#DB2777", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>6️⃣ {results.total_sixes} sixes</span>}
             {results.first_wicket_over && <span style={{ background: C.indOrangePale, color: C.indOrange, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🎳 Over {results.first_wicket_over}</span>}
           </div>
