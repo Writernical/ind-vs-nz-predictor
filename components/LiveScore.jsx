@@ -40,7 +40,6 @@ export default function LiveScore() {
     return (
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 12, textAlign: "center" }}>
         <div style={{ color: "#64748b", fontSize: 13 }}>📡 Waiting for the match to start...</div>
-        <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>Live scores auto-update every 2 minutes.</div>
       </div>
     );
   }
@@ -48,46 +47,45 @@ export default function LiveScore() {
   // ── Parse scores from ANY format ──
   const scoreLines = [];
   const scores = score.scores || [];
+  const defaultTeams = ["🇮🇳 INDIA", "🇳🇿 NZ"];
 
-  for (const s of scores) {
-    // Get team name
-    let team = s.team || "";
-    if (!team && s.inning) team = s.inning;
-    if (!team) continue;
+  for (let i = 0; i < scores.length; i++) {
+    const s = scores[i];
 
+    // Get team name - try multiple fields
+    let team = s.team || s.inning || "";
     const teamLower = team.toLowerCase();
-    const teamLabel = teamLower.includes("india") || teamLower === "ind" ? "🇮🇳 INDIA" :
-                      teamLower.includes("new zealand") || teamLower.includes("nz") ? "🇳🇿 NZ" : team;
-    const isIndia = teamLower.includes("india") || teamLower === "ind";
+
+    let teamLabel;
+    if (teamLower.includes("india") || teamLower === "ind") teamLabel = "🇮🇳 INDIA";
+    else if (teamLower.includes("new zealand") || teamLower.includes("nz")) teamLabel = "🇳🇿 NZ";
+    else teamLabel = defaultTeams[i] || `Team ${i + 1}`; // Fallback: assign based on position
 
     // Get score display
     let display = "";
-    if (s.score && s.score !== "") {
-      // ESPN format: "92/0 (5.5/20 ov)"
-      display = s.score;
+    if (typeof s.score === "string" && s.score.length > 0) {
+      display = s.score; // ESPN: "136/1 (10.5/20 ov)"
     } else if (s.r !== undefined) {
-      // CricketData format
-      display = `${s.r || 0}/${s.w || 0} (${s.o || 0} ov)`;
+      display = `${s.r || 0}/${s.w || 0} (${s.o || 0} ov)`; // CricketData
     }
 
+    // Only show if there's an actual score to display
     if (display) {
+      const isIndia = teamLabel.includes("INDIA");
       scoreLines.push({ team: teamLabel, display, isIndia });
     }
   }
 
-  // If no parsed scores but we have raw data, try to show something
-  if (scoreLines.length === 0 && score.statusDetail) {
-    scoreLines.push({ team: "", display: score.statusDetail, isIndia: true });
-  }
-
-  // Calculate run rate
+  // Calculate run rate from last valid score
   let crr = null;
-  for (const s of scores) {
+  for (const s of [...scores].reverse()) {
     if (s.o && s.r) {
       crr = (s.r / s.o).toFixed(2);
-    } else if (s.score) {
-      const m = (s.score || "").match(/(\d+)\/\d+\s*\((\d+\.?\d*)/);
-      if (m) crr = (parseInt(m[1]) / parseFloat(m[2])).toFixed(2);
+      break;
+    }
+    if (typeof s.score === "string" && s.score.length > 0) {
+      const m = s.score.match(/(\d+)\/\d+\s*\((\d+\.?\d*)/);
+      if (m) { crr = (parseInt(m[1]) / parseFloat(m[2])).toFixed(2); break; }
     }
   }
 
@@ -126,7 +124,7 @@ export default function LiveScore() {
         ))
       ) : (
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, textAlign: "center", padding: 8 }}>
-          Match in progress — score updating...
+          Match in progress...
         </div>
       )}
 
