@@ -29,5 +29,10 @@ export default function RootLayout({ children }) {
       </div>
     </nav>
     <main style={{maxWidth:640,margin:"0 auto",padding:"14px 14px 40px"}}>{children}</main>
+<footer style={{textAlign:"center",padding:"20px 14px 30px",borderTop:"1px solid #e2e8f0"}}>
+  <a href="https://writernical.com/" target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:"#64748b",textDecoration:"none",fontWeight:600}}>
+    Developed by <span style={{color:"#0D47A1",fontWeight:700}}>Writernical</span> �✦
+  </a>
+</footer>
   </body></html>);
 }
