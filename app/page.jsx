@@ -247,7 +247,7 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
     // Show final over results
     const correctCount = Object.keys(overResults).filter(o => overPreds[o] && overPreds[o] === overResults[o]).length;
     let streak = 0, maxStreak = 0;
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 40; i++) {
       const ov = String(i);
       if (overResults[ov] && overPreds[ov] && overPreds[ov] === overResults[ov]) {
         streak++; if (streak > maxStreak) maxStreak = streak;
@@ -265,7 +265,8 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
             🔥 Best streak: {maxStreak} in a row! +{streakBonus} bonus pts!
           </div>
         )}
-        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+        <div style={{ maxHeight: 400, overflowY: "auto" }}>
+          <div style={{ padding: "4px 8px", background: C.indBluePale, borderRadius: 6, marginBottom: 4, textAlign: "center", fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.indBlue, letterSpacing: 1 }}>🏏 1ST INNINGS</div>
           {Array.from({ length: 20 }, (_, i) => {
             const ov = String(i + 1);
             const predicted = overPreds[ov];
@@ -274,6 +275,22 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
             const wrong = predicted && actual && predicted !== actual;
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, padding: "6px 8px", borderRadius: 8, background: correct ? C.greenPale : wrong ? "#FEE2E2" : C.borderLight }}>
+                <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.textMuted, minWidth: 44 }}>Ov {i + 1}</span>
+                <span style={{ fontSize: 12, color: C.textMuted, minWidth: 50 }}>You: <strong style={{ color: predicted ? C.text : C.textDim }}>{predicted || "—"}</strong></span>
+                <span style={{ fontSize: 12, color: C.textMuted, minWidth: 60 }}>Actual: <strong style={{ color: actual ? C.text : C.textDim }}>{actual || "—"}</strong></span>
+                <span style={{ marginLeft: "auto", fontSize: 14 }}>{correct ? "✅" : wrong ? "❌" : "⏳"}</span>
+              </div>
+            );
+          })}
+          <div style={{ padding: "4px 8px", background: C.nzPale, borderRadius: 6, margin: "8px 0 4px", textAlign: "center", fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.nzBlack, letterSpacing: 1 }}>🏏 2ND INNINGS</div>
+          {Array.from({ length: 20 }, (_, i) => {
+            const ov = String(i + 21);
+            const predicted = overPreds[ov];
+            const actual = overResults[ov];
+            const correct = predicted && actual && predicted === actual;
+            const wrong = predicted && actual && predicted !== actual;
+            return (
+              <div key={ov} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, padding: "6px 8px", borderRadius: 8, background: correct ? C.greenPale : wrong ? "#FEE2E2" : C.borderLight }}>
                 <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.textMuted, minWidth: 44 }}>Ov {i + 1}</span>
                 <span style={{ fontSize: 12, color: C.textMuted, minWidth: 50 }}>You: <strong style={{ color: predicted ? C.text : C.textDim }}>{predicted || "—"}</strong></span>
                 <span style={{ fontSize: 12, color: C.textMuted, minWidth: 60 }}>Actual: <strong style={{ color: actual ? C.text : C.textDim }}>{actual || "—"}</strong></span>
@@ -302,7 +319,7 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
           <div style={{ marginTop: 12, background: C.indOrangePale, borderRadius: 12, padding: "12px 16px", textAlign: "left" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.indOrange, marginBottom: 6 }}>🔥 WHY YOU SHOULDN&apos;T MISS THIS:</div>
             <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.7 }}>
-              <div>📊 <strong style={{ color: C.text }}>20 overs × 10 pts = 200 bonus points</strong> up for grabs!</div>
+              <div>📊 <strong style={{ color: C.text }}>40 overs × 10 pts = 400 bonus points</strong> up for grabs!</div>
               <div>🔥 <strong style={{ color: C.indOrange }}>3-over streak bonus:</strong> Get 3 right in a row → +15 extra pts!</div>
               <div>🏅 <strong style={{ color: C.purple }}>Over Master badge</strong> if you nail 5+ overs</div>
               <div>⚡ Each over takes ~4 mins — quick tap and back to watching!</div>
@@ -318,7 +335,7 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
           {/* Streak & Stats */}
           {(() => {
             let streak = 0, maxStreak = 0, correctCount = 0, totalPredicted = 0;
-            for (let i = 1; i <= 20; i++) {
+            for (let i = 1; i <= 40; i++) {
               const ov = String(i);
               if (completedOvers.includes(ov) && overPreds[ov]) {
                 totalPredicted++;
@@ -346,7 +363,9 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
               </div>
             ) : null;
           })()}
-          <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
+          <div style={{ maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
+            {/* 1ST INNINGS */}
+            <div style={{ padding: "4px 8px", background: C.indBluePale, borderRadius: 6, marginBottom: 4, textAlign: "center", fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.indBlue, letterSpacing: 1 }}>🏏 1ST INNINGS</div>
             {Array.from({ length: 20 }, (_, i) => {
               const ov = String(i + 1);
               const isCompleted = completedOvers.includes(ov);
@@ -355,8 +374,6 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
               const correct = isCompleted && predicted && predicted === actual;
               const wrong = isCompleted && predicted && predicted !== actual;
               const isNext = !isCompleted && (i === 0 || completedOvers.includes(String(i)));
-              const isFuture = !isCompleted && !isNext;
-
               return (
                 <div key={i} style={{
                   display: "flex", alignItems: "center", gap: 6, marginBottom: 5,
@@ -370,7 +387,6 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
                   }}>
                     {isCompleted ? (correct ? "✅" : "❌") : isNext ? "🔴" : "⏳"} Ov {i + 1}
                   </span>
-
                   {isCompleted ? (
                     <div style={{ display: "flex", gap: 8, fontSize: 11, color: C.textMuted }}>
                       <span>You: <strong style={{ color: correct ? C.green : "#DC2626" }}>{predicted || "—"}</strong></span>
@@ -378,18 +394,64 @@ function LiveOverByOver({ preds, setPreds, results, completedOvers, playerName }
                       <span style={{ fontWeight: 700, color: correct ? C.green : "#DC2626" }}>{correct ? `+${POINTS.overPrediction}` : "+0"}</span>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", gap: 2, flex: 1, opacity: isFuture ? 0.4 : 1 }}>
+                    <div style={{ display: "flex", gap: 2, flex: 1 }}>
                       {OVER_RANGES.map(r => (
-                        <button key={r}
-                          onClick={() => { if (!isCompleted) saveOverPrediction(ov, r); }}
-                          disabled={isCompleted}
+                        <button key={r} onClick={() => { if (!isCompleted) saveOverPrediction(ov, r); }}
                           style={{
                             flex: 1, padding: "4px 1px", borderRadius: 7, fontSize: 9.5,
                             fontWeight: predicted === r ? 800 : 500,
                             border: predicted === r ? `2px solid ${C.indBlue}` : `1px solid ${C.border}`,
                             background: predicted === r ? C.indBluePale : C.white,
                             color: predicted === r ? C.indBlue : C.textDim,
-                            cursor: isCompleted ? "not-allowed" : "pointer", fontFamily: "inherit",
+                            cursor: "pointer", fontFamily: "inherit",
+                          }}>{r}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* 2ND INNINGS */}
+            <div style={{ padding: "4px 8px", background: C.nzPale, borderRadius: 6, margin: "8px 0 4px", textAlign: "center", fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: C.nzBlack, letterSpacing: 1 }}>🏏 2ND INNINGS</div>
+            {Array.from({ length: 20 }, (_, i) => {
+              const ov = String(i + 21);
+              const isCompleted = completedOvers.includes(ov);
+              const actual = overResults[ov];
+              const predicted = overPreds[ov];
+              const correct = isCompleted && predicted && predicted === actual;
+              const wrong = isCompleted && predicted && predicted !== actual;
+              const prevOv = i === 0 ? "20" : String(i + 20);
+              const isNext = !isCompleted && completedOvers.includes(prevOv);
+              return (
+                <div key={ov} style={{
+                  display: "flex", alignItems: "center", gap: 6, marginBottom: 5,
+                  padding: "6px 8px", borderRadius: 8,
+                  background: correct ? C.greenPale : wrong ? "#FEE2E2" : isNext ? C.indOrangePale : "transparent",
+                  border: isNext ? `2px solid ${C.indOrange}` : "none",
+                }}>
+                  <span style={{
+                    fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, minWidth: 44,
+                    color: isCompleted ? (correct ? C.green : "#DC2626") : isNext ? C.indOrange : C.textDim,
+                  }}>
+                    {isCompleted ? (correct ? "✅" : "❌") : isNext ? "🔴" : "⏳"} Ov {i + 1}
+                  </span>
+                  {isCompleted ? (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11, color: C.textMuted }}>
+                      <span>You: <strong style={{ color: correct ? C.green : "#DC2626" }}>{predicted || "—"}</strong></span>
+                      <span>Actual: <strong style={{ color: C.text }}>{actual}</strong></span>
+                      <span style={{ fontWeight: 700, color: correct ? C.green : "#DC2626" }}>{correct ? `+${POINTS.overPrediction}` : "+0"}</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 2, flex: 1 }}>
+                      {OVER_RANGES.map(r => (
+                        <button key={r} onClick={() => { if (!isCompleted) saveOverPrediction(ov, r); }}
+                          style={{
+                            flex: 1, padding: "4px 1px", borderRadius: 7, fontSize: 9.5,
+                            fontWeight: predicted === r ? 800 : 500,
+                            border: predicted === r ? `2px solid ${C.nzBlack}` : `1px solid ${C.border}`,
+                            background: predicted === r ? C.nzPale : C.white,
+                            color: predicted === r ? C.nzBlack : C.textDim,
+                            cursor: "pointer", fontFamily: "inherit",
                           }}>{r}</button>
                       ))}
                     </div>
@@ -707,13 +769,17 @@ export default function PredictPage() {
 
       {/* Over-by-Over */}
       <Card accent team="ind">
-        <SectionTitle icon="📊" title="Over-by-Over (1st Inn)" pts={POINTS.overPrediction} />
+        <SectionTitle icon="📊" title="Over-by-Over (Both Innings)" pts={POINTS.overPrediction} />
         <div style={{ padding: "10px 14px", background: "linear-gradient(135deg,#E3F2FD,#FFF3E0)", borderRadius: 10, marginBottom: 10 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.indBlue, marginBottom: 2 }}>🔴 This section stays LIVE during the match!</div>
           <div style={{ fontSize: 11, color: C.textMuted }}>Come back during the match to predict each over. {POINTS.overPrediction} pts each + 🔥 streak bonus (+15 pts for every 3 correct in a row)!</div>
         </div>
-        <p style={{ color: C.textMuted, fontSize: 10, margin: "0 0 8px" }}>Optional now — predict the rest live during the match!</p>
-        <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+        <p style={{ color: C.textMuted, fontSize: 10, margin: "0 0 8px" }}>Optional now — predict the rest live! 40 overs × {POINTS.overPrediction} pts = <strong style={{ color: C.indOrange }}>400 bonus pts!</strong></p>
+        <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
+          {/* 1ST INNINGS */}
+          <div style={{ padding: "6px 10px", background: C.indBluePale, borderRadius: 8, marginBottom: 6, textAlign: "center" }}>
+            <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 14, fontWeight: 700, color: C.indBlue, letterSpacing: 2 }}>🏏 1ST INNINGS — OVERS 1-20</span>
+          </div>
           {Array.from({ length: 20 }, (_, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
               <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: i < 6 ? C.indOrange : C.textDim, minWidth: 44 }}>{i < 6 ? "⚡" : ""}Ov {i + 1}</span>
@@ -731,6 +797,30 @@ export default function PredictPage() {
               </div>
             </div>
           ))}
+          {/* 2ND INNINGS */}
+          <div style={{ padding: "6px 10px", background: C.nzPale, borderRadius: 8, margin: "10px 0 6px", textAlign: "center" }}>
+            <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 14, fontWeight: 700, color: C.nzBlack, letterSpacing: 2 }}>🏏 2ND INNINGS — OVERS 1-20</span>
+          </div>
+          {Array.from({ length: 20 }, (_, i) => {
+            const ovKey = String(i + 21);
+            return (
+              <div key={ovKey} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 13, fontWeight: 700, color: i < 6 ? C.nzBlack : C.textDim, minWidth: 44 }}>{i < 6 ? "⚡" : ""}Ov {i + 1}</span>
+                <div style={{ display: "flex", gap: 2, flex: 1 }}>
+                  {OVER_RANGES.map(r => (
+                    <button key={r} onClick={() => updateOv(ovKey, r)} style={{
+                      flex: 1, padding: "4px 1px", borderRadius: 7, fontSize: 9.5,
+                      fontWeight: preds.over_predictions?.[ovKey] === r ? 800 : 500,
+                      border: preds.over_predictions?.[ovKey] === r ? `2px solid ${C.nzBlack}` : `1px solid ${C.border}`,
+                      background: preds.over_predictions?.[ovKey] === r ? C.nzPale : C.white,
+                      color: preds.over_predictions?.[ovKey] === r ? C.nzBlack : C.textDim,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}>{r}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
