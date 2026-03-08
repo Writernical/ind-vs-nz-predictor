@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  INDIA_PLAYERS, NZ_PLAYERS, OVER_RANGES, POWERPLAY_RANGES,
-  SIXES_RANGES, INDIVIDUAL_RANGES, WICKET_OVERS, POINTS,
-  calculateScore, MAX_POSSIBLE,
+  INDIA_PLAYERS, NZ_PLAYERS, INDIA_SCORING, NZ_SCORING,
+  INDIA_BOWLING, NZ_BOWLING, ALL_PLAYERS,
+  OVER_RANGES, POWERPLAY_RANGES, SIXES_RANGES, INDIVIDUAL_RANGES,
+  WICKET_OVERS, POINTS, calculateScore, MAX_POSSIBLE,
 } from "@/lib/constants";
 import LiveScore from "@/components/LiveScore";
 
@@ -53,6 +54,7 @@ function calcBoostedScore(p, r) {
   let winnerCorrect = false;
   const fields = [
     ["match_winner", POINTS.matchWinner], ["top_scorer", POINTS.topScorer],
+    ["top_wicket_taker", POINTS.topWicketTaker],
     ["player_of_match", POINTS.playerOfMatch], ["total_sixes", POINTS.totalSixes],
     ["first_wicket_over", POINTS.firstWicketOver], ["powerplay_score", POINTS.powerplayScore],
     ["highest_individual", POINTS.highestIndividual],
@@ -80,6 +82,7 @@ function getBadges(p, r) {
   const st = { correct: 0, matchWinner: false, topScorer: false, totalSixes: false, pickedNZ: p.match_winner === "New Zealand", oversCorrect: 0, highRollerHit: false, totalScore: calcBoostedScore(p, r) };
   if (r.match_winner && p.match_winner === r.match_winner) { st.correct++; st.matchWinner = true; }
   if (r.top_scorer && p.top_scorer === r.top_scorer) { st.correct++; st.topScorer = true; }
+  if (r.top_wicket_taker && p.top_wicket_taker === r.top_wicket_taker) st.correct++;
   if (r.player_of_match && p.player_of_match === r.player_of_match) st.correct++;
   if (r.total_sixes && p.total_sixes === r.total_sixes) { st.correct++; st.totalSixes = true; }
   if (r.first_wicket_over && p.first_wicket_over === r.first_wicket_over) st.correct++;
@@ -88,7 +91,7 @@ function getBadges(p, r) {
   const overResults = r.over_results || {};
   const overPreds = p.over_predictions || {};
   for (const ov of Object.keys(overResults)) { if (overPreds[ov] && overPreds[ov] === overResults[ov]) st.oversCorrect++; }
-  const cf = ["match_winner", "top_scorer", "player_of_match", "total_sixes", "first_wicket_over", "powerplay_score", "highest_individual"];
+  const cf = ["match_winner", "top_scorer", "top_wicket_taker", "player_of_match", "total_sixes", "first_wicket_over", "powerplay_score", "highest_individual"];
   for (const f of cf) { if ((boosts[f] || 1) === 3 && r[f] && p[f] === r[f]) st.highRollerHit = true; }
   return BADGE_DEFS.filter(b => {
     if (b.id === "oracle") return st.correct >= 5;
@@ -351,7 +354,7 @@ export default function PredictPage() {
   const [toast, setToast] = useState("");
   const [results, setResults] = useState(null);
   const [preds, setPreds] = useState({
-    match_winner: "", top_scorer: "", player_of_match: "", total_sixes: "",
+    match_winner: "", top_scorer: "", top_wicket_taker: "", player_of_match: "", total_sixes: "",
     first_wicket_over: "", powerplay_score: "", highest_individual: "", over_predictions: {},
   });
   const [boosts, setBoosts] = useState({});
@@ -398,6 +401,7 @@ export default function PredictPage() {
     const overData = { ...preds.over_predictions, _boosts: boosts, _powerups: powerups, _doubleDownField: ddField };
     const row = {
       player_name: name.trim(), match_winner: preds.match_winner, top_scorer: preds.top_scorer,
+      top_wicket_taker: preds.top_wicket_taker,
       player_of_match: preds.player_of_match, total_sixes: preds.total_sixes,
       first_wicket_over: preds.first_wicket_over, powerplay_score: preds.powerplay_score,
       highest_individual: preds.highest_individual, over_predictions: overData,
@@ -424,7 +428,8 @@ export default function PredictPage() {
           <p style={{ color: C.textMuted, fontSize: 12, margin: "0 0 10px" }}>Your picks are in, {name}. Check the leaderboard!</p>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center" }}>
             {preds.match_winner && <Badge bg={C.greenPale} color={C.green}>Winner: {preds.match_winner}{(boosts.match_winner || 1) > 1 ? ` (${boosts.match_winner}×)` : ""}</Badge>}
-            {preds.top_scorer && <Badge bg={C.indBluePale} color={C.indBlue}>{preds.top_scorer}</Badge>}
+            {preds.top_scorer && <Badge bg={C.indBluePale} color={C.indBlue}>🔥 {preds.top_scorer}</Badge>}
+            {preds.top_wicket_taker && <Badge bg={C.purplePale} color={C.purple}>🎳 {preds.top_wicket_taker}</Badge>}
             {powerups.length > 0 && <Badge bg={C.purplePale} color={C.purple}>{powerups.length} power-ups</Badge>}
           </div>
           {results && results.match_winner && (
@@ -487,7 +492,7 @@ export default function PredictPage() {
         <Card>
           <h3 style={{ fontFamily: "'Teko',sans-serif", fontSize: 18, color: C.indBlue, margin: "0 0 10px" }}>📊 POINTS TABLE</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "6px 16px" }}>
-            {[["🏆 Match Winner", 50], ["🔥 Top Scorer", 40], ["⭐ Player of Match", 40], ["6️⃣ Total Sixes", 30], ["🎳 First Wicket Over", 30], ["⚡ Powerplay Score", 25], ["💯 Highest Individual", 25], ["📊 Each Over", 10]].map(([l, p]) => (
+            {[["🏆 Match Winner", 50], ["🔥 Top Scorer", 40], ["🎳 Top Wicket Taker", 40], ["⭐ Player of Match", 40], ["6️⃣ Total Sixes", 30], ["🏹 First Wicket Over", 30], ["⚡ Powerplay Score", 25], ["💯 Highest Individual", 25], ["📊 Each Over", 10]].map(([l, p]) => (
               <div key={l} style={{ display: "contents" }}>
                 <div style={{ fontSize: 13, color: C.text, padding: "3px 0" }}>{l}</div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.indBlue, padding: "3px 0", textAlign: "right" }}>{p} pts</div>
@@ -542,7 +547,7 @@ export default function PredictPage() {
                   <div style={{ marginTop: 6, padding: "8px 12px", background: C.purplePale, borderRadius: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: C.purple, letterSpacing: 1, marginBottom: 6, fontFamily: "'Teko',sans-serif" }}>PICK CATEGORY TO DOUBLE:</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {[["match_winner", "Winner"], ["top_scorer", "Top Scorer"], ["player_of_match", "PotM"], ["total_sixes", "Sixes"], ["first_wicket_over", "1st Wicket"]].map(([k, l]) => (
+                      {[["match_winner", "Winner"], ["top_scorer", "Top Scorer"], ["top_wicket_taker", "Wickets"], ["player_of_match", "PotM"], ["total_sixes", "Sixes"], ["first_wicket_over", "1st Wicket"]].map(([k, l]) => (
                         <button key={k} onClick={() => setDdField(k)} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: ddField === k ? 800 : 500, border: ddField === k ? `2px solid ${C.purple}` : `1px solid ${C.border}`, background: ddField === k ? C.white : "transparent", color: ddField === k ? C.purple : C.textMuted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>{l}</button>
                       ))}
                     </div>
@@ -571,19 +576,37 @@ export default function PredictPage() {
       </div>
       {preds.match_winner && <div style={{ marginBottom: 12 }}><BoostPicker field="match_winner" boosts={boosts} onBoost={updateBoost} budgetUsed={boostUsed} /></div>}
 
-      {/* Top Scorer */}
+      {/* Top Scorer — Batters + All-rounders */}
       <Card accent team="ind">
         <SectionTitle icon="🔥" title="Top Scorer" pts={POINTS.topScorer} />
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, marginBottom: 5 }}>🇮🇳 INDIA</div>
-        <SelectGrid options={INDIA_PLAYERS} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} />
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "10px 0 5px" }}>🇳🇿 NEW ZEALAND</div>
-        <SelectGrid options={NZ_PLAYERS} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} team="nz" />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, marginBottom: 5 }}>🇮🇳 INDIA — BATTERS</div>
+        <SelectGrid options={INDIA_SCORING.slice(0, 6)} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, margin: "8px 0 5px" }}>🇮🇳 INDIA — ALL-ROUNDERS</div>
+        <SelectGrid options={INDIA_SCORING.slice(6)} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "10px 0 5px" }}>🇳🇿 NZ — BATTERS</div>
+        <SelectGrid options={NZ_SCORING.slice(0, 6)} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} team="nz" />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "8px 0 5px" }}>🇳🇿 NZ — ALL-ROUNDERS</div>
+        <SelectGrid options={NZ_SCORING.slice(6)} value={preds.top_scorer} onChange={v => update("top_scorer", v)} cols={2} team="nz" />
         {preds.top_scorer && <BoostPicker field="top_scorer" boosts={boosts} onBoost={updateBoost} budgetUsed={boostUsed} />}
       </Card>
 
-      {/* Player of the Match */}
+      {/* Top Wicket Taker — Bowlers + All-rounders */}
       <Card accent team="nz">
-        <SectionTitle icon="⭐" title="Player of Match" pts={POINTS.playerOfMatch} team="nz" />
+        <SectionTitle icon="🎳" title="Top Wicket Taker" pts={POINTS.topWicketTaker} team="nz" />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, marginBottom: 5 }}>🇮🇳 INDIA — BOWLERS</div>
+        <SelectGrid options={INDIA_BOWLING.slice(0, 5)} value={preds.top_wicket_taker} onChange={v => update("top_wicket_taker", v)} cols={2} />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, margin: "8px 0 5px" }}>🇮🇳 INDIA — ALL-ROUNDERS</div>
+        <SelectGrid options={INDIA_BOWLING.slice(5)} value={preds.top_wicket_taker} onChange={v => update("top_wicket_taker", v)} cols={2} />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "10px 0 5px" }}>🇳🇿 NZ — BOWLERS</div>
+        <SelectGrid options={NZ_BOWLING.slice(0, 5)} value={preds.top_wicket_taker} onChange={v => update("top_wicket_taker", v)} cols={2} team="nz" />
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "8px 0 5px" }}>🇳🇿 NZ — ALL-ROUNDERS</div>
+        <SelectGrid options={NZ_BOWLING.slice(5)} value={preds.top_wicket_taker} onChange={v => update("top_wicket_taker", v)} cols={2} team="nz" />
+        {preds.top_wicket_taker && <BoostPicker field="top_wicket_taker" boosts={boosts} onBoost={updateBoost} budgetUsed={boostUsed} />}
+      </Card>
+
+      {/* Player of the Match — anyone */}
+      <Card accent team="ind">
+        <SectionTitle icon="⭐" title="Player of Match" pts={POINTS.playerOfMatch} />
         <div style={{ fontSize: 10, fontWeight: 800, color: C.indOrange, letterSpacing: 2, marginBottom: 5 }}>🇮🇳 INDIA</div>
         <SelectGrid options={INDIA_PLAYERS} value={preds.player_of_match} onChange={v => update("player_of_match", v)} cols={2} />
         <div style={{ fontSize: 10, fontWeight: 800, color: C.nzBlack, letterSpacing: 2, margin: "10px 0 5px" }}>🇳🇿 NEW ZEALAND</div>
@@ -597,7 +620,7 @@ export default function PredictPage() {
         {preds.total_sixes && <BoostPicker field="total_sixes" boosts={boosts} onBoost={updateBoost} budgetUsed={boostUsed} />}
       </Card>
 
-      <Card accent team="nz"><SectionTitle icon="🎳" title="First Wicket Over" pts={POINTS.firstWicketOver} team="nz" />
+      <Card accent team="nz"><SectionTitle icon="🏹" title="First Wicket Over" pts={POINTS.firstWicketOver} team="nz" />
         <SelectGrid options={WICKET_OVERS} value={preds.first_wicket_over} onChange={v => update("first_wicket_over", v)} cols={4} team="nz" />
         {preds.first_wicket_over && <BoostPicker field="first_wicket_over" boosts={boosts} onBoost={updateBoost} budgetUsed={boostUsed} />}
       </Card>
