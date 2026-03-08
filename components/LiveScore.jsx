@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Card } from "./ui";
 
-// LiveScore reads from Supabase's `live_score` table.
-// The auto-sync cron job writes fresh data there every 3 minutes.
-// This component also subscribes to real-time updates.
-// Result: ZERO external API calls from the browser.
+const C = {
+  indBlue: "#0D47A1", indBluePale: "#E3F2FD", indBlueSoft: "#BBDEFB",
+  indOrange: "#FF6F00", indOrangePale: "#FFF3E0",
+  nzBlack: "#1a1a1a", nzPale: "#F5F5F5",
+  white: "#FFFFFF", text: "#1a1a2e", textMuted: "#64748b", textDim: "#94a3b8",
+  border: "#e2e8f0", green: "#16a34a", greenPale: "#dcfce7",
+};
 
 export default function LiveScore() {
   const [score, setScore] = useState(null);
@@ -15,38 +17,18 @@ export default function LiveScore() {
 
   useEffect(() => {
     fetchScore();
-
-    // Subscribe to real-time updates
     const channel = supabase
       .channel("live-score-updates")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "live_score" },
-        (payload) => {
-          if (payload.new?.data) {
-            setScore(payload.new.data);
-          }
-        }
-      )
-      .subscribe();
-
-    // Also poll every 60s as a fallback
-    const interval = setInterval(fetchScore, 60000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "live_score" },
+        (payload) => { if (payload.new?.data) setScore(payload.new.data); }
+      ).subscribe();
+    const interval = setInterval(fetchScore, 30000); // Poll every 30s
+    return () => { supabase.removeChannel(channel); clearInterval(interval); };
   }, []);
 
   async function fetchScore() {
-    const { data } = await supabase
-      .from("live_score")
-      .select("data, fetched_at")
-      .eq("id", 1)
-      .single();
-
-    if (data?.data && data.data.matchId) {
+    const { data } = await supabase.from("live_score").select("data, fetched_at").eq("id", 1).single();
+    if (data?.data && (data.data.matchStarted || data.data.title || data.data.matchId)) {
       setScore(data.data);
     }
     setLoading(false);
@@ -54,119 +36,90 @@ export default function LiveScore() {
 
   if (loading) {
     return (
-      <Card className="text-center">
-        <div className="text-slate-500 text-sm">📡 Connecting to live scores...</div>
-      </Card>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 12, textAlign: "center" }}>
+        <div style={{ color: C.textMuted, fontSize: 13 }}>📡 Connecting to live scores...</div>
+      </div>
     );
   }
 
-  if (!score || !score.matchStarted) {
+  if (!score || (!score.matchStarted && !score.title)) {
     return (
-      <Card className="border-slate-700 text-center">
-        <div className="text-slate-500 text-sm">📡 Waiting for the match to start...</div>
-        <div className="text-xs text-slate-600 mt-1">
-          Live scores auto-update every 3 minutes once the match begins.
-        </div>
-      </Card>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 12, textAlign: "center" }}>
+        <div style={{ color: C.textMuted, fontSize: 13 }}>📡 Waiting for the match to start...</div>
+        <div style={{ color: C.textDim, fontSize: 11, marginTop: 4 }}>Live scores auto-update every 2 minutes.</div>
+      </div>
     );
   }
 
-  // Build display strings from the scores array
-  const innings = (score.scores || []).map(
-    (s) => `${shortenInning(s.inning)}: ${s.r || 0}/${s.w || 0} (${s.o || 0} ov)`
-  );
+  // ── Parse scores from different API formats ──
+  const scoreLines = [];
+  const scores = score.scores || [];
 
-  const lastInning = (score.scores || []).slice(-1)[0];
-  const crr = lastInning && lastInning.o > 0
-    ? (lastInning.r / lastInning.o).toFixed(2)
-    : null;
+  for (const s of scores) {
+    if (s.team && s.score) {
+      // ESPN format: { team: "India", score: "92/0 (5.5/20 ov)" }
+      const teamShort = s.team.toLowerCase().includes("india") ? "🇮🇳 IND" :
+                        s.team.toLowerCase().includes("new zealand") ? "🇳🇿 NZ" : s.team;
+      scoreLines.push({ team: teamShort, display: s.score });
+    } else if (s.inning) {
+      // CricketData format: { inning: "India Inning 1", r: 92, w: 0, o: 5.5 }
+      const teamShort = (s.inning || "").toLowerCase().includes("india") ? "🇮🇳 IND" : "🇳🇿 NZ";
+      scoreLines.push({ team: teamShort, display: `${s.r || 0}/${s.w || 0} (${s.o || 0} ov)` });
+    }
+  }
 
-  // Extract batter/bowler info from scorecard if available
-  const sc = score.scorecard || [];
-  const lastSc = sc.length > 0 ? sc[sc.length - 1] : null;
-  const activeBatters = lastSc?.batting
-    ?.filter((b) => !b.dismissal || b.dismissal === "not out" || b.dismissal === "batting")
-    .slice(-2) || [];
-  const recentBowlers = (lastSc?.bowling || []).slice(-2);
+  // Calculate run rate from the last score
+  let crr = null;
+  const lastScore = scores[scores.length - 1];
+  if (lastScore) {
+    if (lastScore.o && lastScore.r) {
+      crr = (lastScore.r / lastScore.o).toFixed(2);
+    } else if (lastScore.score) {
+      // Try parsing "92/0 (5.5/20 ov)"
+      const m = (lastScore.score || "").match(/(\d+)\/\d+\s*\((\d+\.?\d*)\/\d+/);
+      if (m) crr = (parseInt(m[1]) / parseFloat(m[2])).toFixed(2);
+    }
+  }
 
   return (
-    <Card className="border-amber-500/20 animate-slide-up">
+    <div style={{
+      background: "linear-gradient(135deg, #0D47A1, #1565C0)",
+      border: "2px solid #FF6F00",
+      borderRadius: 14, padding: "16px 20px", marginBottom: 12,
+      boxShadow: "0 4px 20px rgba(13,71,161,0.2)",
+    }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-          </span>
-          <span className="text-xs font-bold tracking-widest text-red-400 uppercase">LIVE</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444", animation: "pulse 1.5s infinite", display: "inline-block" }} />
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3, color: "#FCA5A5", textTransform: "uppercase", fontFamily: "'Teko',sans-serif" }}>LIVE</span>
         </div>
-        <span className="text-xs text-slate-500">{score.status}</span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{score.status || ""}</span>
       </div>
 
       {/* Title */}
-      <div className="text-lg font-extrabold text-amber-400 mb-2">
+      <div style={{ fontFamily: "'Teko',sans-serif", fontSize: 16, fontWeight: 700, color: "#FF8F00", marginBottom: 8 }}>
         {score.title || "India vs New Zealand"}
       </div>
 
       {/* Scores */}
-      <div className="space-y-1 mb-3">
-        {innings.map((inn, i) => (
-          <div key={i} className="text-xl font-black text-white">{inn}</div>
-        ))}
-      </div>
-
-      {crr && <div className="text-xs text-slate-400 mb-4">Run Rate: {crr}</div>}
-
-      {/* Batters */}
-      {activeBatters.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          {activeBatters.map((b, i) => (
-            <div key={i} className="bg-white/5 rounded-lg p-3">
-              <div className="text-sm font-bold text-slate-200 truncate">
-                {b.batsman?.name || b.batsman || "—"}
-              </div>
-              <div className="text-amber-400 font-bold">
-                {b.r || 0}
-                <span className="text-xs text-slate-500 ml-1">({b.b || 0})</span>
-              </div>
-              <div className="text-[10px] text-slate-500">
-                {b["4s"] || 0} fours • {b["6s"] || 0} sixes
-              </div>
-            </div>
-          ))}
+      {scoreLines.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)", minWidth: 55 }}>{s.team}</span>
+          <span style={{ fontFamily: "'Teko',sans-serif", fontSize: 28, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{s.display}</span>
         </div>
-      )}
+      ))}
 
-      {/* Bowlers */}
-      {recentBowlers.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          {recentBowlers.map((b, i) => (
-            <div key={i} className="bg-white/5 rounded-lg p-3">
-              <div className="text-xs text-slate-500 mb-1">Bowling</div>
-              <div className="text-sm font-bold text-slate-200 truncate">
-                {b.bowler?.name || b.bowler || "—"}
-              </div>
-              <div className="text-xs text-slate-400">
-                {b.r || 0}/{b.w || 0} ({b.o || 0} ov) • Econ {b.o > 0 ? (b.r / b.o).toFixed(1) : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {crr && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Run Rate: {crr}</div>}
 
-      {/* Match ended banner */}
+      {/* Match ended */}
       {score.matchEnded && (
-        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-center">
-          <div className="text-green-400 font-bold text-sm">{score.status}</div>
+        <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(22,163,106,0.15)", border: "1px solid rgba(22,163,106,0.3)", borderRadius: 10, textAlign: "center" }}>
+          <div style={{ color: "#4ADE80", fontWeight: 700, fontSize: 13 }}>{score.status}</div>
         </div>
       )}
-    </Card>
-  );
-}
 
-function shortenInning(inning) {
-  if (!inning) return "";
-  return inning
-    .replace("Inning 1", "1st Inn")
-    .replace("Inning 2", "2nd Inn");
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+    </div>
+  );
 }
