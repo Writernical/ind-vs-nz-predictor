@@ -17,7 +17,15 @@ function isIndianPlayer(name) {
 
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  const { searchParams } = new URL(request.url);
+  const secretParam = searchParams.get("secret");
+  
+  // Allow auth via header OR query param (for browser testing)
+  const authorized = (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`) || 
+                     (CRON_SECRET && secretParam === CRON_SECRET) ||
+                     !CRON_SECRET;
+  
+  if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!API_KEY) {
@@ -28,7 +36,7 @@ export async function GET(request) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("Auto-sync error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
   }
 }
 
@@ -95,6 +103,9 @@ async function syncMatchData() {
   // ── Step 7: Save ──
   await supabase.from("match_results").update({ ...merged, updated_at: new Date().toISOString() }).eq("id", 1);
 
+  // ── Debug: read back what's in the DB ──
+  const { data: dbCheck } = await supabase.from("match_results").select("*").eq("id", 1).single();
+
   // ── Step 8: Recalculate scores ──
   const { data: allPreds } = await supabase.from("predictions").select("*");
   let updated = 0;
@@ -110,7 +121,8 @@ async function syncMatchData() {
 
   return {
     synced: true, matchStatus: match.status, matchEnded: match.matchEnded,
-    extracted, scoresUpdated: updated, timestamp: new Date().toISOString(),
+    extracted, merged, dbCheck,
+    scoresUpdated: updated, timestamp: new Date().toISOString(),
   };
 }
 
